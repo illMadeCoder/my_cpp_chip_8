@@ -12,7 +12,12 @@ using namespace std;
 #define WINDOW_WIDTH 600
 
 void chip_8_op(char first_byte, 
-			   char second_byte) {
+			   char second_byte,
+			   int *PC,
+			   char *SP,
+			   int *registers,
+			   int *stack,
+			   char *display) {
 	// The original implementation of the Chip - 8 language includes 36 different instructions, including 
 	// math, graphics, and flow control functions.
 	// Super Chip - 48 added an additional 10 instructions, for a total of 46.
@@ -26,12 +31,13 @@ void chip_8_op(char first_byte,
 	//	y - A 4 - bit value, the upper 4 bits of the low byte of the instruction
 	//	kk or byte - An 8 - bit value, the lowest 8 bits of the instruction
 
-
+	*PC += 2;
 
 	int first_nibble = (first_byte & 0xf0) >> 4;
 	int second_nibble = first_byte & 0x0f;
 	int third_nibble = (second_byte & 0xf0) >> 4;
 	int fourth_nibble = second_byte & 0x0f;
+	int nnn = (second_nibble << 8) | (third_nibble << 4) | fourth_nibble;
 
 	cout << std::hex << first_nibble << second_nibble << third_nibble << fourth_nibble << '\n';
 	//	00E0 (clear screen)
@@ -54,13 +60,17 @@ void chip_8_op(char first_byte,
 					cout << "clear the display";
 					break;
 				}
+				break;
 			}
+			break;
 		}
+		break;
 	case 0x1:
 		//1nnn - JP addr
 		//Jump to location nnn.
 		//The interpreter sets the program counter to nnn.
-		cout << "jump";
+		cout << "jump nnn " << nnn;
+		*PC = nnn;
 		break;
 	case 0x6:
 		cout << "set register VX";
@@ -128,24 +138,41 @@ int main(int argc, char *argv[]) {
 		used to store the address that the interpreter shoud return to when finished with a subroutine.Chip - 
 		8 allows for up to 16 levels of nested subroutines.*/
 		int stack[16];
+		/*The original implementation of the Chip - 8 language used a 64x32 - pixel monochrome display with this format:
+		(0, 0)	(63, 0)
+		(0, 31)	(63, 31)*/
+		char display[32*8];
+		for (int i = 0; i < (32 * 8); i++) {
+			display[i] = 0;
+		}
+		display[0] = (0b10101010);
+		display[1] = (0xff);
+		display[9] = 0xaa;
+
 		streamsize size = romifilestream.tellg();
 		romifilestream.seekg(0, ios::beg);
 		
 		if (romifilestream.read(program, size)) {
 			cout << " successfully read chip-8 program\n";
 			for (int i = 0; i < size/2; i++) {
-				chip_8_op(program[PC], program[PC+1]);
-				PC += 2;
+				chip_8_op(program[PC], 
+						  program[PC+1],
+						  &PC,
+						  &SP,
+						  registers,
+						  stack,
+						  display
+						);				
 			}			
 		} 
 		else {
 			cout << " failed to read chip-8 program";
 		}
-		//display();
+		output_display(display);
 		romifilestream.close();
 	}
-	else {
-		cout << argv[1] << " unsuccessfully oppened";
+	else { 
+		cout << argv[1] << " file failed to open";
 	}	
 	return 0;
 }

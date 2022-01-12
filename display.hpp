@@ -1,2 +1,2 @@
 #pragma once
-void display();
+void output_display(char *display);
