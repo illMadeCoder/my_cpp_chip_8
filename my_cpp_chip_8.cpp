@@ -118,28 +118,27 @@ void chip_8_op(char first_byte,
 		//	//int y = i;
 		//	display[];
 		//}	
-		int index = (*Vy%32) * 8 + (*Vx%63);
 		int height = N;
-		cout << std::dec
-			<< "display \nVx: "
-			<< *Vx
-			<< "\nVy: "
-			<< *Vy
-			<< "\nindex: "
-			<< index
-			<< "\nI: "
-			<< *I
-			<< "\nHeight: "
-			<< height
-			<< "\nDisplay B:"
-			<< (bitset<8> (display[index]))
-			<< "\nMem: "
-			<< (bitset<8> (memory[*I]));
+		int x = *Vx;
+		int y = *Vy;
+		cout << "display";
 		for (int i = 0; i < N; i++) {
-			index = (*Vy+i)%32 * 8 + *Vx % 64;
-			display[index] = display[index] ^ memory[*I+i];
+			int byte_position = (y+i)*8 + x/8;
+			int bit_offset = x % 8;
+			char byte_bitmask = 0;
+			if (bit_offset != 0) {				
+				unsigned char left_byte = memory[*I + i];				
+				left_byte = left_byte >> bit_offset;
+				display[byte_position] ^= left_byte;
+				unsigned char right_byte = memory[*I + i];
+				right_byte = right_byte << 8-bit_offset;				
+				display[byte_position + 1] ^= right_byte;
+			}
+			else 
+				display[byte_position] ^= memory[*I + i];
+			output_display(display);
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}		
-
 		break;
 	}
 	default:
@@ -237,10 +236,7 @@ int main(int argc, char *argv[]) {
 						  registers,
 						  stack,
 						  display);				
-				output_display(display);
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			}			
-			
+			}						
 		} 
 		else {
 			cout << " failed to read chip-8 program";
