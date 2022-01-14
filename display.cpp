@@ -4,18 +4,19 @@
 #undef main
 #define WINDOW_WIDTH 64
 #define WINDOW_HEIGHT 32
+SDL_Event event;
+SDL_Renderer* renderer;
+SDL_Window* window;
 
-void output_display(char * display) {
-    SDL_Event event;
-    SDL_Renderer* renderer;
-    SDL_Window* window;
-    int i;
-    int j;
+void init() {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(WINDOW_WIDTH*10, WINDOW_HEIGHT*10, 0, &window, &renderer);
+    SDL_CreateWindowAndRenderer(WINDOW_WIDTH * 10, WINDOW_HEIGHT * 10, 0, &window, &renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_RenderSetScale(renderer, 10, 10);
+}
+
+void output_display(char * display) {
     for (int i = 0; i < WINDOW_HEIGHT; i++) {
         for (int j = 0; j < WINDOW_WIDTH; j++) {
             /*The original implementation of the Chip - 8 language used a 64x32 - pixel monochrome display with this format:
@@ -50,11 +51,11 @@ void output_display(char * display) {
     }
 
     SDL_RenderPresent(renderer);
-    while (1) {
-        if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
-            break;
-    }
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    //while (1) {
+    //    if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
+    //        break;
+    //}
+    //SDL_DestroyRenderer(renderer);
+    //SDL_DestroyWindow(window);
+    //SDL_Quit();
 }

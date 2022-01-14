@@ -5,6 +5,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <bitset>
+#include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -13,8 +16,10 @@ using namespace std;
 
 void chip_8_op(char first_byte, 
 			   char second_byte,
+			   char *memory,
 			   int *PC,
 			   char *SP,
+			   int *I,
 			   int *registers,
 			   int *stack,
 			   char *display) {
@@ -37,8 +42,12 @@ void chip_8_op(char first_byte,
 	int second_nibble = first_byte & 0x0f;
 	int third_nibble = (second_byte & 0xf0) >> 4;
 	int fourth_nibble = second_byte & 0x0f;
-	int nnn = (second_nibble << 8) | (third_nibble << 4) | fourth_nibble;
-
+	int N = fourth_nibble;
+	int NN = (third_nibble << 4) | N;
+	int NNN = (second_nibble << 8) | NN;
+	int *Vx = &registers[second_nibble];
+	int *Vy = &registers[third_nibble];
+	
 	cout << std::hex << first_nibble << second_nibble << third_nibble << fourth_nibble << '\n';
 	//	00E0 (clear screen)
 	//	1NNN(jump)
@@ -69,27 +78,74 @@ void chip_8_op(char first_byte,
 		//1nnn - JP addr
 		//Jump to location nnn.
 		//The interpreter sets the program counter to nnn.
-		cout << "jump nnn " << nnn;
-		*PC = nnn;
+		cout << "jump nnn " << NNN;
+		*PC = NNN;
 		break;
 	case 0x6:
-		cout << "set register VX";
+		//6xkk - LD Vx, byte
+		//Sets VX to NN.		
+		cout << "Set Vx = kk";
+		*Vx = NN;
 		break;
 	case 0x7:
 		cout << "add value to register VX";
+		*Vx += NN;
 		break;	
 	case 0xA:
 		//Annn - LD I, addr
 		//Set I = nnn.
 		cout << "set index register I";
+		*I = NNN;
 		break;
-	case 0xD:
-		cout << "display";
+	case 0xD:		
+	{
+		/*Draws a sprite at coordinate(VX, VY) that has a width of 8 pixels and a height of N pixels.Each
+		row of 8 pixels is read as bit - coded starting from memory location I;
+		I value does not change after the execution of this instruction.As described above,
+		VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn,
+		and to 0 if that does not happen*/
+		//char height = N;
+
+		//for (int i = 0; i < height; i++) {
+		//	//char bit_position = *Vx % 8;
+		//	//int byte_position = *Vx / 8;
+		//	//// 128 = 1000 0000
+		//	//char bitmask = (0b10000000) >> bit_position;
+		//	//// divide windowwidth by 8 to normalize back into byte form
+		//	//int index = i * (WINDOW_WIDTH / 8) + byte_position;
+		//	//bool filled = (display[index] & bitmask) != 0;
+		//	//int x = byte_position * 8 + bit_position;
+		//	//int y = i;
+		//	display[];
+		//}	
+		int index = (*Vy%32) * 8 + (*Vx%63);
+		int height = N;
+		cout << std::dec
+			<< "display \nVx: "
+			<< *Vx
+			<< "\nVy: "
+			<< *Vy
+			<< "\nindex: "
+			<< index
+			<< "\nI: "
+			<< *I
+			<< "\nHeight: "
+			<< height
+			<< "\nDisplay B:"
+			<< (bitset<8> (display[index]))
+			<< "\nMem: "
+			<< (bitset<8> (memory[*I]));
+		for (int i = 0; i < N; i++) {
+			index = (*Vy+i)%32 * 8 + *Vx % 64;
+			display[index] = display[index] ^ memory[*I+i];
+		}		
+
 		break;
+	}
 	default:
 		cout << "unknown instruction";
 	}
-	cout << '\n';
+	cout << '\n\n';
 }
 
 int main(int argc, char *argv[]) {    
@@ -123,12 +179,12 @@ int main(int argc, char *argv[]) {
 		//	| Reserved for  |
 		//	|  interpreter |
 		//	+-------------- - += 0x000 (0) Start of Chip - 8 RAM
-		char program[4096];
+		char program[4096];		
 		/*Chip - 8 has 16 general purpose 8 - bit registers, 
 		usually referred to as Vx, where x is a hexadecimal digit(0 through F).
 		There is also a 16 - bit register called I.This register is generally used to store memory addresses, 
 		so only the lowest(rightmost) 12 bits are usually used.*/
-		int PC = 0;
+		int PC = 512;
 		char SP = 0;
 		/*Chip - 8 has 16 general purpose 8 - bit registers, usually referred to as Vx, 
 		where x is a hexadecimal digit(0 through F).There is also a 16 - bit register called I.
@@ -142,33 +198,60 @@ int main(int argc, char *argv[]) {
 		(0, 0)	(63, 0)
 		(0, 31)	(63, 31)*/
 		char display[32*8];
+		//I : 16bit register (For memory address) (Similar to void pointer);
+		int I = 0;
 		for (int i = 0; i < (32 * 8); i++) {
 			display[i] = 0;
 		}
-		display[0] = (0b10101010);
-		display[1] = (0xff);
-		display[9] = 0xaa;
+		// font setup
+		//0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+		//0x20, 0x60, 0x20, 0x20, 0x70, // 1
+		//0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+		//0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+		//0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+		//0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+		//0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+		//0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+		//0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+		//0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+		//0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+		//0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+		//0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+		//0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+		//0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+		//0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 
 		streamsize size = romifilestream.tellg();
 		romifilestream.seekg(0, ios::beg);
 		
-		if (romifilestream.read(program, size)) {
+		if (romifilestream.read(program+512, size)) {
 			cout << " successfully read chip-8 program\n";
+			init();
 			for (int i = 0; i < size/2; i++) {
 				chip_8_op(program[PC], 
 						  program[PC+1],
+						  program,
 						  &PC,
 						  &SP,
+						  &I,
 						  registers,
 						  stack,
-						  display
-						);				
+						  display);				
+				output_display(display);
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}			
+			
 		} 
 		else {
 			cout << " failed to read chip-8 program";
 		}
-		output_display(display);
+		while (1) {
+			//if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
+			//	break;
+		}
+		//SDL_DestroyRenderer(renderer);
+		//SDL_DestroyWindow(window);
+		//SDL_Quit();
 		romifilestream.close();
 	}
 	else { 
