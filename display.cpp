@@ -16,20 +16,20 @@ void init() {
     SDL_RenderSetScale(renderer, 10, 10);
 }
 
-void output_display(char * display) {
+void output_display(unsigned char * display) {
     for (int i = 0; i < WINDOW_HEIGHT; i++) {
         for (int j = 0; j < WINDOW_WIDTH; j++) {
             /*The original implementation of the Chip - 8 language used a 64x32 - pixel monochrome display with this format:
             (0, 0)	(63, 0)
             (0, 31)	(63, 31)*/
-            /*char display[32 * 8];*/
+            /*unsigned char display[32 * 8];*/
             // xxxx xxxx .. xxxx xxxx
             // ..   
             // xxxx ..
-            char bit_position = j % 8;
+            unsigned char bit_position = j % 8;
             int byte_position = j / 8;
             // 128 = 1000 0000
-            char bitmask = (0b10000000) >> bit_position;
+            unsigned char bitmask = (0b10000000) >> bit_position;
             // divide windowwidth by 8 to normalize back into byte form
             int index = i * (WINDOW_WIDTH/8) + byte_position;
             bool filled = (display[index] & bitmask) != 0;
