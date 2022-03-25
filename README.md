@@ -1,6 +1,6 @@
 # my_cpp_chip_8
 
-Welcome to my Chip-8 Emulator built in CPP!
+Welcome to my Chip-8 Emulator built in C++!
 
-A printout of the IBM logo.
-![image](https://user-images.githubusercontent.com/11481438/160056425-35adb6a9-902f-4e60-8b54-65ee52c87854.png)
+An example running the basic IBM program.
+![image](https://user-images.githubusercontent.com/11481438/160056617-4d41216e-b251-4fe0-a449-4b1aaa54b40e.png)
